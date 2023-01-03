@@ -1,0 +1,6 @@
+function [mice,value] = mice_move(val, dis_fac, iteration, a,length,height,rew,mice,cat,cheese,fear,hunger)
+
+    value = value_function(val, dis_fac, iteration, a,length,height,rew,mice,cat,cheese,fear,hunger);
+    mice = policy(mice, value,length,height,mice,cat,cheese,fear,hunger);
+
+end

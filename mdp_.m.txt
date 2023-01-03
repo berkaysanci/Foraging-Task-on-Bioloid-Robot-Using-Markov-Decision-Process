@@ -1,0 +1,12 @@
+w=0;
+l=0;
+iter_mat=zeros(1,100);
+for i =1:100
+    [iter,win]=mdp_run();
+    iter_mat(i)=iter;
+    if win == 1
+        w=w+1;
+    else 
+        l=l+1;
+    end
+end

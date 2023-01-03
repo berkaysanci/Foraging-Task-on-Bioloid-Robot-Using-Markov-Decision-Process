@@ -1,0 +1,392 @@
+function  mdp_run_run(seed)    
+    square=8;
+    
+    grid_dim=[square,square];
+    
+    mice=[1,1];
+    cheese=[5,5];
+    
+    nest=mice;
+    rotation=[[0,-2];[1,-1];[2,0];[1,1];[0,+2];[-1,1];[-2,0];[-1,-1]];
+    cat_array=zeros(size(rotation));
+    for i = 1:size(cat_array,1)
+        cat_array(i,:)=[cheese(1),cheese(2)]-rotation(i,:);
+    end
+    
+    value = zeros(grid_dim);
+    
+    discount=0.9;
+    lear_rate=0.9;
+
+    cat = cat_array(1,:);
+
+    reward = zeros(grid_dim) + 0.01;
+
+    rew=+10;
+    pun=-50;
+
+    reward(cheese(1), cheese(2)) = rew;
+    reward(cat(1), cat(2)) = pun;
+
+    z = zeros([8, 2]);
+    it = 1;
+    for i = [-1, 0, 1]
+        for j = [-1, 0, 1]
+            if not (i == 0 && j == 0)
+                z(it,:) = [i, j];
+                it = it + 1;
+            end
+        end
+    end
+
+    reward_cheese = cheese.*ones([8,2]) - z;
+    reward_cat = cat.*ones([8,2]) - z;
+
+    for i = 1:grid_dim(1)
+        for j = 1:grid_dim(2)
+            if any(i == reward_cheese(:, 1)) && any(j == reward_cheese(:, 2))
+                reward(i, j) = reward(i, j) + rew;
+            end
+
+            if any(i == reward_cat(:, 1)) && any(j == reward_cat(:,2))
+                reward(i, j) = reward(i, j) +pun;
+            end
+        end
+    end
+
+    hunger = 0.2;
+    fear = 0;
+    peynir_flag=0;
+    iteration = 0;
+
+    while 1 == 1
+        dis = mice - cat;
+        mice_cat_dis_old = sqrt(dis(1)^2 + dis(2)^2);
+
+        for k = 1:20
+            for i = 1:grid_dim(1)
+                for j = 1:grid_dim(2) 
+                    v_next = zeros([4,1]);
+                    if j + 1 <= grid_dim(2)
+                        v_next(1) = value(i, j + 1);
+                    end
+                    if j - 1 >= 1
+                        v_next(2) = value(i, j - 1);
+                    end
+                    if i - 1 >= 1
+                        v_next(3) = value(i - 1, j);
+                    end
+                    if i + 1 <= grid_dim(1)
+                        v_next(4)= value(i + 1, j);
+                    end
+                    
+                    trans_mat = [0.7, 0.1, 0.1, 0.1;
+                                 0.1, 0.7, 0.1, 0.1;
+                                 0.1, 0.1, 0.7, 0.1;
+                                 0.1, 0.1, 0.1, 0.7];
+
+                    if j + 1 > grid_dim(2)
+                        trans_mat(:, 1) = zeros(1,4);
+                    end
+                    if j - 1 < 1
+                        trans_mat(:, 2) = zeros(1,4);
+                    end
+                    if i - 1 < 1
+                        trans_mat(:, 3) = zeros(1,4);
+                    end
+                    if i + 1 > grid_dim(1)
+                        trans_mat(:, 4) = zeros(1,4);
+                    end
+    
+                    for a = 1:size(trans_mat,1)
+                        if sum(trans_mat(a,:)) ~= 1.0
+                            fark = 1-sum(trans_mat(a,:));
+                            bolum = sum(trans_mat(a,:) ~= 0);
+                            eklenti = fark / bolum;
+                            for b = 1:size(trans_mat,1)
+                                if trans_mat(a, b) ~= 0
+                                    trans_mat(a, b) = trans_mat(a, b)+eklenti;
+                                end
+                            end
+                        end
+                    end
+                    
+                    dis1 = mice - cat+[0,1];
+                    mice_cat_dis1 = sqrt(dis1(1)^2 + dis1(2)^2);
+                    dis2 = mice - cat+[0,-1];
+                    mice_cat_dis2 = sqrt(dis2(1)^2 + dis2(2)^2);
+                    dis3 = mice - cat+[-1,0];
+                    mice_cat_dis3 = sqrt(dis3(1)^2 + dis3(2)^2);
+                    dis4 = mice - cat+[+1,0];
+                    mice_cat_dis4 = sqrt(dis4(1)^2 + dis4(2)^2);
+
+                    action_fear = [mice_cat_dis1,mice_cat_dis2,mice_cat_dis3,mice_cat_dis4];
+                
+                    ind_fear = find(max(action_fear) == action_fear);
+
+                    dis1 = mice - cheese+[0,1];
+                    mice_cheese_dis1 = sqrt(dis1(1)^2 + dis1(2)^2);
+                    dis2 = mice - cheese+[0,-1];
+                    mice_cheese_dis2 = sqrt(dis2(1)^2 + dis2(2)^2);
+                    dis3 = mice - cheese+[-1,0];
+                    mice_cheese_dis3 = sqrt(dis3(1)^2 + dis3(2)^2);
+                    dis4 = mice - cheese+[+1,0];
+                    mice_cheese_dis4 = sqrt(dis4(1)^2 + dis4(2)^2);
+                
+                    action_hunger = [mice_cheese_dis1,mice_cheese_dis2,mice_cheese_dis3,mice_cheese_dis4];
+                
+                    ind_hunger = find(min(action_hunger) == action_hunger);
+
+                    for a = 1:size(trans_mat,1)
+                        if all(trans_mat(:,a) ~= zeros(4))
+                            if a == ind_fear
+                                trans_mat(:, a) = trans_mat(:,a) + fear;
+                            else
+                                trans_mat(:, a) = trans_mat(:, a) - fear/(nnz(trans_mat(a,:))-1);
+                            end
+                            if a == ind_hunger
+                                trans_mat(:, a) = trans_mat(:,a) + hunger;
+                            elseif a ~= ind_hunger
+                                trans_mat(:, a) = trans_mat(:, a) - hunger/(nnz(trans_mat(a,:))-1);
+                            end
+                        end
+                    end
+
+                    for a = 1: size(trans_mat, 1)
+                        for b = 1: size(trans_mat, 2)
+                            if trans_mat(a, b) >= 1
+                                trans_mat(a, b) = 1;
+                            end
+                            if trans_mat(a, b) <= 0
+                                trans_mat(a, b) = 0;
+                            end
+                        end
+                    end
+
+                    for a = 1: size(trans_mat, 1)
+                        trans_mat(a,:)=trans_mat(a,:)/sum(trans_mat(a,:));
+                    end
+                    value(i, j) = value(i, j) + lear_rate * (reward(i, j)+discount*max(trans_mat*v_next)-value(i, j));
+                end
+            end
+        end
+
+        v_next = zeros([4,1]);
+        
+        if mice(2) + 1 <= grid_dim(2)
+            v_next(1) = value(mice(1), mice(2) + 1);
+        end
+        if mice(2) - 1 >= 1
+            v_next(2) = value(mice(1), mice(2) - 1);
+        end
+        if mice(1) - 1 >= 1
+            v_next(3) = value(mice(1) - 1, mice(2));
+        end
+        if mice(1) + 1 <= grid_dim(1)
+            v_next(4)= value(mice(1) + 1, mice(2));
+        end
+        
+        trans_mat = [0.7, 0.1, 0.1, 0.1;
+                     0.1, 0.7, 0.1, 0.1;
+                     0.1, 0.1, 0.7, 0.1;
+                     0.1, 0.1, 0.1, 0.7];
+
+        if mice(2) + 1 > grid_dim(2)
+            trans_mat(:, 1) = zeros(1,4);
+        end
+        if mice(2) - 1 < 1
+            trans_mat(:, 2) = zeros(1,4);
+        end
+        if mice(1) - 1 < 1
+            trans_mat(:, 3) = zeros(1,4);
+        end
+        if mice(1) + 1 > grid_dim(1)
+            trans_mat(:, 4) = zeros(1,4);
+        end
+
+        for a = 1:size(trans_mat,1)
+            if sum(trans_mat(a,:)) ~= 1.0
+                fark = 1-sum(trans_mat(a,:));
+                bolum = sum(trans_mat(a,:) ~= 0);
+                eklenti = fark / bolum;
+                for b = 1:size(trans_mat,1)
+                    if trans_mat(a, b) ~= 0
+                        trans_mat(a, b) = trans_mat(a, b)+eklenti;
+                    end
+                end
+            end
+        end
+
+        dis1 = mice - cat+[0,1];
+        mice_cat_dis1 = sqrt(dis1(1)^2 + dis1(2)^2);
+        dis2 = mice - cat+[0,-1];
+        mice_cat_dis2 = sqrt(dis2(1)^2 + dis2(2)^2);
+        dis3 = mice - cat+[-1,0];
+        mice_cat_dis3 = sqrt(dis3(1)^2 + dis3(2)^2);
+        dis4 = mice - cat+[+1,0];
+        mice_cat_dis4 = sqrt(dis4(1)^2 + dis4(2)^2);
+
+        action_fear = [mice_cat_dis1,mice_cat_dis2,mice_cat_dis3,mice_cat_dis4];
+    
+        ind_fear = find(max(action_fear) == action_fear);
+
+        dis1 = mice - cheese+[0,1];
+        mice_cheese_dis1 = sqrt(dis1(1)^2 + dis1(2)^2);
+        dis2 = mice - cheese+[0,-1];
+        mice_cheese_dis2 = sqrt(dis2(1)^2 + dis2(2)^2);
+        dis3 = mice - cheese+[-1,0];
+        mice_cheese_dis3 = sqrt(dis3(1)^2 + dis3(2)^2);
+        dis4 = mice - cheese+[+1,0];
+        mice_cheese_dis4 = sqrt(dis4(1)^2 + dis4(2)^2);
+    
+        action_hunger = [mice_cheese_dis1,mice_cheese_dis2,mice_cheese_dis3,mice_cheese_dis4];
+    
+        ind_hunger = find(min(action_hunger) == action_hunger);
+
+        for a = 1:size(trans_mat,1)
+            if all(trans_mat(:,a) ~= zeros(4))
+                if a == ind_fear
+                    trans_mat(:, a) = trans_mat(:,a) + fear;
+                else
+                    trans_mat(:, a) = trans_mat(:, a) - fear/(nnz(trans_mat(a,:))-1);
+                end
+                if a == ind_hunger
+                    trans_mat(:, a) = trans_mat(:,a) + hunger;
+                elseif a ~= ind_hunger
+                    trans_mat(:, a) = trans_mat(:, a) - hunger/(nnz(trans_mat(a,:))-1);
+                end
+            end
+        end
+
+        for a = 1: size(trans_mat, 1)
+            for b = 1: size(trans_mat, 2)
+                if trans_mat(a, b) >= 1
+                    trans_mat(a, b) = 1;
+                end
+                if trans_mat(a, b) <= 0
+                    trans_mat(a, b) = 0;
+                end
+            end
+        end
+
+        for a = 1: size(trans_mat, 1)
+            trans_mat(a,:)=trans_mat(a,:)/sum(trans_mat(a,:));
+        end
+        matrix = trans_mat*v_next;
+        utility = max(matrix) ;
+        indeks = utility == matrix ;
+        action_set = [1,2,3,4] ;
+        
+        rng(seed);
+        cp = [0, cumsum(trans_mat(indeks,:))];
+        r = rand;
+        ind = find(r>cp, 1, 'last');
+        action = action_set(ind);
+    
+        if action==1
+            mice(2) = mice(2)+ 1;
+        elseif action==2
+            mice(2) = mice(2)- 1;
+        elseif action==3
+            mice(1) = mice(1)- 1;
+        elseif action==4
+            mice(1) = mice(1)+ 1;
+        end
+
+        iteration = iteration+1;
+        cat=cat_array(mod(iteration,size(cat_array,1))+1,:);
+        dis1 = mice - cat;
+        mice_cat_dis_new = sqrt(dis1(1)^2 + dis1(2)^2);
+
+        fear = fear+(mice_cat_dis_old-mice_cat_dis_new)/1000;
+
+        if peynir_flag == 0
+            reward = zeros(grid_dim) + 0.01;
+        
+            rew=+10;
+            pun=-50;
+        
+            reward(cheese(1), cheese(2)) = rew;
+            reward(cat(1), cat(2)) = pun;
+        
+            z = zeros([8, 2]);
+            it = 1;
+            for i = [-1, 0, 1]
+                for j = [-1, 0, 1]
+                    if not (i == 0 && j == 0)
+                        z(it,:) = [i, j];
+                        it = it + 1;
+                    end
+                end
+            end
+        
+            reward_cheese = cheese.*ones([8,2]) - z;
+            reward_cat = cat.*ones([8,2]) - z;
+        
+            for i = 1:grid_dim(1)
+                for j = 1:grid_dim(2)
+                    if any(i == reward_cheese(:, 1)) && any(j == reward_cheese(:, 2))
+                        reward(i, j) = reward(i, j) + rew;
+                    end
+        
+                    if any(i == reward_cat(:, 1)) && any(j == reward_cat(:,2))
+                        reward(i, j) = reward(i, j) +pun;
+                    end
+                end
+            end
+        else
+            reward = zeros(grid_dim) + 0.01;
+        
+            rew=+10;
+            pun=-50;
+        
+            reward(nest(1), nest(2)) = rew;
+            reward(cat(1), cat(2)) = pun;
+        
+            z = zeros([8, 2]);
+            it = 1;
+            for i = [-1, 0, 1]
+                for j = [-1, 0, 1]
+                    if not (i == 0 && j == 0)
+                        z(it,:) = [i, j];
+                        it = it + 1;
+                    end
+                end
+            end
+        
+            reward_nest = nest.*ones([8,2]) - z;
+            reward_cat = cat.*ones([8,2]) - z;
+        
+            for i = 1:grid_dim(1)
+                for j = 1:grid_dim(2)
+                    if any(i == reward_nest(:, 1)) && any(j == reward_nest(:, 2))
+                        reward(i, j) = reward(i, j) + rew;
+                    end
+        
+                    if any(i == reward_cat(:, 1)) && any(j == reward_cat(:,2))
+                        reward(i, j) = reward(i, j) +pun;
+                    end
+                end
+            end
+            cheese = mice;
+        end
+
+        if all(mice == cheese) && peynir_flag == 0
+            hunger = 0;
+            peynir_flag = 1;
+        else
+            hunger = hunger+ 0.001;
+        end
+
+        if all(mice == cat)
+            disp="kedi yakaladı"
+            break
+        end
+
+        if all(mice == nest) && peynir_flag == 1
+            disp="peyniri aldı ve yuvaya götürdü"
+            break
+        end
+
+    end
+end

@@ -1,0 +1,15 @@
+clearvars
+
+square=8;
+
+grid_dim=[square,square];
+
+mice=[1,1];
+cheese=[4,4];
+
+nest=mice;
+cat=cat_rotation(cheese);
+
+value_init = zeros(grid_dim) ;
+
+mdp(cat, mice, cheese,nest, value_init, 0.9, 0.9,grid_dim(1),grid_dim(2))
